@@ -1,0 +1,47 @@
+NAME: Maria E.V. Neptune
+EMAIL: jerenept@gmail.com
+ID: 004-665-056
+
+Important notes: there are several useful make recipes, in addition to the mandatory ones:
+
+1. edit: opens the objectively superior editor to edit lab0.c  
+2. release: builds a binary without debugging symbols (this is used for the dist recipe, but not the default) 
+3. debug: builds the binary with debugging symbols and runs the debugger  
+4. run: ensures the binary is updated and runs it
+
+Also note: the dist recipe will fail if any of the required components to be submitted (as well as my and Prof. Kampe's separate testing scripts) are not present. 
+
+Included Files:  
+* README: This file. Gives an overview of what is included and information on how the program was created and tested  
+* test.sh: A basic smoke-test script; checks to see that basic functionality exists (I wrote this before writing the program). Tests are detailed below.  
+* backtrace.png: a screenshot of a gdb instance showing a segmentation fault and a backtrace up the call stack at the time the fault was issued.  
+* breakpoint.png: a screenshot of a gdb instance showing a break;oint triggered before the illegal memory access could be encountered, and examining the pointer that would produce the segmentation fault.  
+* Makefile: a make file containing recipes that help streamline common operations on the project: building the binary (for release as well as debugging, running the smoke tests, removing products from the directory, creating a tar file for distribution, etc.  
+* lab0.c: the C code of my submitted program. 
+* P0_check.sh: Professor Kampe's tests for the project. 
+
+Tests in the smoke-test scrpit:  
+* correctly segfaults after receiving the --segfault option  
+* correctly catches the segfault when given the --catch option  
+* correctly exits with fault when no argument given to --input or --output option  
+* verify that when --segfault is given no copying is done, to or from files and stdin/stdout  
+* verify that the correct thing is copied, to or from files and stdout/stdin  
+
+Limitations: 
+* None based on size; I successfully copied a 90GB backup of my home folder (not included for obvious reasons).  
+
+Features:  
+* All features noted in the Project 0 specification were implemented.  
+
+Testing Methodology:  
+* bash script that carries out most permutations of options that could be given to the program, and tests correct behavior with these options.  
+
+
+Resources used:
+GNU Make Manual (https://gnu.org/software/make/manual/make.html)
+GNU C Library: Using Getopt (https://www.gnu.org/software/libc/manual/html_node/Using-Getopt.html)
+Getopt code segfaults when compiling with -O3 on OS X Mavericks - Stack Overflow (http://stackoverflow.com/questions/19915544/getopt-code-segfaults-when-compiling-with-o3-on-os-x-mavericks)
+signal(2) manpage
+Linux Signals – Example C Program to Catch Signals (SIGINT, SIGKILL, SIGSTOP, etc.)(http://www.thegeekstuff.com/2012/03/catch-signals-sample-c-code/)i
+gdb cheat sheet that I got from Prof. Reinman during CS33
+
