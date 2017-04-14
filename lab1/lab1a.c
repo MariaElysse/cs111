@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <getopt.h>
 #define FD_KEYBOARD 0
 #define READ_BUFFER_WIDTH 1024 //as recommended by TA
 #define CR 0xd
@@ -14,69 +15,43 @@
 #define print_err() do {if (errno){ fprintf(stderr, "Internal Error: %s\n", strerror(errno)); exit(EXIT_FAILURE); }} while(0)
 //what a glorious macro, fuck having good error descriptions
 //prints an error and quits if an errno is present
-
-size_t sanitize_crlf(char *buffer, ssize_t buffer_len);
 void usage(){
     fprintf(stderr, "Usage: \n\
             --");
 }
 
-#ifndef TESTING
-int main(int argc, char** argv){
-    //get modes of terminal
-
-    struct termios initial_status;
-    char* shell = getenv("SHELL");
-    if (errno) {
-        fprintf(stderr, "Could not get the shell. This isn't anything to worry about: %s", strerror(errno));
-    } else if (!shell) {
-        fprintf(stderr, "Could not determine the shell we're running under. This isn't anything to worry about.\n");
-    } else if (!(strstr(shell, "/bash") || strstr(shell, "/sh"))) { //if a nullptr is returned, i.e.
-        fprintf(stderr, "This program works best with a bourne shell (sh or bash). \n"
-                "Using the one you've chosen (%s) may cause issues. \n"
-                "I'm not going to quit because you're an adult and can handle the \n"
-                "consequences of what you're doing.\n", shell);
-    }
-    if (tcgetattr(FD_KEYBOARD, &initial_status)) { //nonzero=error
-        fprintf(stderr, "Could not get state of current terminal: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    struct termios set_status = initial_status;
-    set_status.c_iflag = ISTRIP;
-    set_status.c_oflag = 0;
-    set_status.c_lflag = 0;
-    //set the terminal to non-canonical, no echo mode
-    //suggested by the spec
-    if (tcsetattr(FD_KEYBOARD, TCSANOW, &set_status)) {
-        fprintf(stderr, "Could not set status of current terminal: %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    //read into buffer then read out
-    bool got_eof = false;
-    char *buffer = calloc(1, READ_BUFFER_WIDTH);
-    print_err();
-    while (!got_eof) {
-        ssize_t chars_read = read(FD_KEYBOARD, buffer, READ_BUFFER_WIDTH);
-        print_err();
-        chars_read = sanitize_crlf(buffer, chars_read);
-        if (chars_read > 0) {
-            for (int i = 0; i < chars_read; ++i) {
-                if (buffer[i] != EF) { //the last thing read will always be eof as far as I can tell
-                    ssize_t bytes_written = write(1, buffer + i, 1);
-                    if (bytes_written <= 0) {
-                        print_err();
-                    }
-                } else {
-                    got_eof = true; //apparently eof is 4 (C-d)
-                }
-            }
+bool do_shell(int argc, char **argv) {
+    int getopt_status = 0;
+    int index;
+    struct option options[] = {
+            {"shell", no_argument, NULL, 's'},
+            {0, 0, 0,                    0}
+    };
+    bool ret_val = false;
+    while ((getopt_status = getopt_long(argc, argv, ":s", options, &index) != -1)) {
+        switch (getopt_status) {
+            case -1:
+            case 0:
+                break;
+            case 's':
+                ret_val = true;
+                break;
+            case '?':
+                fprintf(stderr, "Unrecognised option: %s\n", argv[index + 1]);
+                usage();
+                exit(EXIT_FAILURE);
+            case ':':
+                fprintf(stderr, "Argument given to option %s: %s\n", argv[index + 1], optarg);
+                usage();
+                exit(EXIT_FAILURE);
+            default:
+                fprintf(stderr, "Very wrong arguments given (getopt status code: %i)\n", getopt_status);
+                usage();
+                exit(EXIT_FAILURE);
         }
     }
-    //set everything back to how it was
-    tcsetattr(FD_KEYBOARD, TCSANOW, &initial_status);
-    print_err();
+    return ret_val;
 }
-#endif
 
 size_t sanitize_crlf(char *buffer, ssize_t buffer_len) {
     /**
@@ -150,4 +125,63 @@ size_t sanitize_crlf(char *buffer, ssize_t buffer_len) {
     return actual_buffer_width;
 
 }
+
+#ifndef TESTING
+int main(int argc, char** argv){
+    //get modes of terminal
+
+    struct termios initial_status;
+    char* shell = getenv("SHELL");
+    if (errno) {
+        fprintf(stderr, "Could not get the shell. This isn't anything to worry about: %s", strerror(errno));
+    } else if (!shell) {
+        fprintf(stderr, "Could not determine the shell we're running under. This isn't anything to worry about.\n");
+    } else if (!(strstr(shell, "/bash") || strstr(shell, "/sh"))) { //if a nullptr is returned, i.e.
+        fprintf(stderr, "This program works best with a bourne shell (sh or bash). \n"
+                "Using the one you've chosen (%s) may cause issues. \n"
+                "I'm not going to quit because you're an adult and can handle the \n"
+                "consequences of what you're doing.\n", shell);
+    }
+    if (tcgetattr(FD_KEYBOARD, &initial_status)) { //nonzero=error
+        fprintf(stderr, "Could not get state of current terminal: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    struct termios set_status = initial_status;
+    set_status.c_iflag = ISTRIP;
+    set_status.c_oflag = 0;
+    set_status.c_lflag = 0;
+    //set the terminal to non-canonical, no echo mode
+    //suggested by the spec
+    if (tcsetattr(FD_KEYBOARD, TCSANOW, &set_status)) {
+        fprintf(stderr, "Could not set status of current terminal: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    //read into buffer then read out
+    bool got_eof = false;
+    char *buffer = calloc(1, READ_BUFFER_WIDTH);
+    print_err();
+    while (!got_eof) {
+        ssize_t chars_read = read(FD_KEYBOARD, buffer, READ_BUFFER_WIDTH);
+        print_err();
+        chars_read = sanitize_crlf(buffer, chars_read);
+        if (chars_read > 0) {
+            for (int i = 0; i < chars_read; ++i) {
+                if (buffer[i] != EF) { //the last thing read will always be eof as far as I can tell
+                    ssize_t bytes_written = write(1, buffer + i, 1);
+                    if (bytes_written <= 0) {
+                        print_err();
+                    }
+                } else {
+                    got_eof = true; //apparently eof is 4 (C-d)
+                }
+            }
+        }
+    }
+    //set everything back to how it was
+    tcsetattr(FD_KEYBOARD, TCSANOW, &initial_status);
+    print_err();
+}
+#endif
+
+
 
