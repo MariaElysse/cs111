@@ -7,13 +7,22 @@
 #include <stdbool.h>
 #include <getopt.h>
 #include <poll.h>
+#include <signal.h>
 
 #define FD_KEYBOARD 0
-#define READ_BUFFER_WIDTH 1024 //as recommended by TA
+#define READ_BUFFER_WIDTH 1 //as recommended by TA
 #define CR 0xd
 #define LF 0xa
 #define EF 0x4
-#ifdef DEBUG_PIPES_CS111_MARIA
+
+struct pipe_data {
+    struct pollfd in_pollfd;
+    int in;
+    struct pollfd out_pollfd;
+    int out;
+};
+#ifdef DEBUG_PIPES
+
 #include <time.h>
 void write_log(FILE* logfile, char* msg){
     time_t t = time(0);
@@ -25,7 +34,8 @@ void write_log(FILE* logfile, char* msg){
 //what a glorious macro, fuck having good error descriptions
 //prints an error and quits if an errno is present
 void usage(){
-    fprintf(stderr, "Usage: \n");
+    fprintf(stderr, "Usage: \n"
+            "");
 }
 
 bool do_shell(int argc, char **argv) {
@@ -202,34 +212,122 @@ void shell(){
      * 4. read output from the shell and echo it to stdout, lf should be sanitised to crlf
      */
     //write logs to log.txt
-#ifdef DEBUG_PIPES_CS111_MARIA
+#ifdef DEBUG_PIPES
     FILE* log = fopen("log.txt", "a");
     write_log(log, "Starting program");
 #endif
-    //fork.
-    int pipefd[2];
-    struct polls {
-        struct pollfd in;
-        struct pollfd out;
-    };
+
 
     struct pollfd keyb =  {FD_KEYBOARD, (POLLIN | POLLERR | POLLHUP), (POLLIN | POLLERR | POLLHUP)};
-    ssize_t pid = fork();
+    int to_child[2];
+    pipe(to_child);
+    print_err();
+    int from_child[2];
+    pipe(from_child);
+    print_err();
+    pid_t pid = fork();
     print_err();
     if (pid){
-#ifdef DEBUG_PIPES_CS111_MARIA
-        write_log(log, "Forked: this is the parent process");
-#endif
         //parent
-        //set up the pipes?
-        close(pipefd[0]);
-        //I'm not gonna read from this side, cause it is not possible to read from this side
+#ifdef DEBUG_PIPES
+        write_log(log, "Forked: this is the parent process");
+        write_log(log, "Closing unnecessary pipes");
+        fprintf(log, "Child pid: %u", pid);
+        fflush(log);
+#endif
+        close(to_child[0]);
+        print_err();
+        close(from_child[1]);
+        print_err();
+        //struct pipe_data pipe_data;
+        //pipe_data.in = from_child[0];
+        //pipe_data.out = to_child[1];
+        char buffer[READ_BUFFER_WIDTH];
+        ssize_t bytes_read;
+        while ((bytes_read = read(FD_KEYBOARD, buffer, READ_BUFFER_WIDTH)) >= 0){ //no errors
+#ifdef DEBUG_PIPES
+            char byt = buffer[10];
+            buffer[10] = 0;
+            write_log(log, buffer);
+            buffer[10] = byt;
+#endif
+            for (size_t i=0; i<bytes_read; i++){
+                if (buffer[i]==EF || buffer[i] == 3){
+                    kill(pid, SIGTERM);
+                    print_err();
+                }
+                if (buffer[i] == CR || buffer[i] == LF){
+                    write(1, "\r\n", 2);
+                    print_err();
+                    write(to_child[1], "\n", 1);
+                    print_err();
+                } else {
+                    write(to_child[1], buffer + i, 1);
+                    //TODO: deal with errors from this write, properly.
+                    print_err();
+                    write(1, buffer+i, 1);
+                    print_err();
+                }
+
+#ifdef DEBUG_PIPES
+                write_log(log, "Wrote from parent to child");
+                fflush(log);
+#endif
+            }
+            if ( (bytes_read = read(from_child[0], buffer, READ_BUFFER_WIDTH)) > 0){
+#ifdef DEBUG_PIPES
+            write_log(log, "read from child");
+            char byt = buffer[10];
+            buffer[10] = 0;
+            write_log(log, buffer);
+            buffer[10] = byt;
+            fflush(log);
+#endif
+                for (size_t i = 0; i<bytes_read; i++){
+                    if (buffer[i] == LF){
+                        write(1, "\r\n", 2);
+                        print_err();
+                    } else {
+                        write(1, buffer+i, 1);
+                        print_err();
+                    }
+                }
+            }
+
+        }
     } else {
-#ifdef DEBUG_PIPES_CS111_MARIA
+        //child process
+        close(to_child[1]);
+        print_err();
+        close(from_child[0]);
+        print_err();
+        dup2(to_child[0], FD_KEYBOARD);
+        print_err();
+        dup2(from_child[1], 1); //FD for stdout
+        print_err();
+        dup2(from_child[1], 2); //dup stderr to pipe to process
+        print_err();
+        close(to_child[0]);
+        print_err();
+        close(from_child[1]);
+        print_err(); //I'm so glad the preprocessor is doing this copy-paste for me
+
+#ifdef DEBUG_PIPES
+        write_log(log, "set up pipes in child, starting process");
+        fflush(log);
+#endif
+        char* command_execute = "./main"; //TODO: this sint a shell, it's an echoer
+        char* arguments[2];
+        arguments[0] = command_execute;
+        arguments[1] = 0;
+        execvp(command_execute, arguments);
+        print_err();
+#ifdef DEBUG_PIPES
         write_log(log, "Forked: this is the child process");
+        fflush(log);
 #endif
     }
-#ifdef DEBUG_PIPES_CS111_MARIA
+#ifdef DEBUG_PIPES
     fclose(log);
 #endif
 }
@@ -241,7 +339,7 @@ int main(int argc, char** argv){
     check_shell();
     set_terminal_modes(&initial_status);
     if (do_shell(argc, argv)){
-        fprintf(stderr, "Shell option received\n");
+        shell();
     } else {
         echo();
     }
