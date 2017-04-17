@@ -4,7 +4,7 @@
 # EMAIL:jerenept@gmail.com
 
 lab1a: lab1a.c #debug 
-	gcc lab1a.c -o lab1a -g -Og  
+	gcc lab1a.c -o lab1a -g -Og -D DEBUG_PIPES_CS111_MARIA
 check: testing_build 
 #	./test.sh
 release: 
@@ -19,7 +19,7 @@ debug: lab1a
 run:
 	./lab1a
 testing_build: 
-	gcc -D TESTING -o lab1a-testing test.c lab1a.c -Wall
+	gcc -D TESTING_CS111_MARIA -o lab1a-testing test.c lab1a.c -Wall
 	./lab1a-testing
 	@rm lab1a-testing 
 .PHONY: clean check release dist debug run testing_build 

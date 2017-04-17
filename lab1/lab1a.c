@@ -6,18 +6,26 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <getopt.h>
+#include <poll.h>
+
 #define FD_KEYBOARD 0
 #define READ_BUFFER_WIDTH 1024 //as recommended by TA
 #define CR 0xd
 #define LF 0xa
 #define EF 0x4
-
+#ifdef DEBUG_PIPES_CS111_MARIA
+#include <time.h>
+void write_log(FILE* logfile, char* msg){
+    time_t t = time(0);
+    fprintf(logfile, "pid: %u time: %s ", getpid(), ctime(&t));
+    fprintf(logfile, "%s\n", msg);
+}
+#endif
 #define print_err() do {if (errno){ fprintf(stderr, "Internal Error: %s\n", strerror(errno)); exit(EXIT_FAILURE); }} while(0)
 //what a glorious macro, fuck having good error descriptions
 //prints an error and quits if an errno is present
 void usage(){
-    fprintf(stderr, "Usage: \n\
-            --");
+    fprintf(stderr, "Usage: \n");
 }
 
 bool do_shell(int argc, char **argv) {
@@ -25,10 +33,10 @@ bool do_shell(int argc, char **argv) {
     int index;
     struct option options[] = {
             {"shell", no_argument, NULL, 's'},
-            {0, 0, 0,                    0}
+            {0, 0, 0, 0}
     };
     bool ret_val = false;
-    while ((getopt_status = getopt_long(argc, argv, ":s", options, &index) != -1)) {
+    while ((getopt_status = getopt_long(argc, argv, ":s", options, &index)) != -1) {
         switch (getopt_status) {
             case -1:
             case 0:
@@ -36,8 +44,11 @@ bool do_shell(int argc, char **argv) {
             case 's':
                 ret_val = true;
                 break;
+            case 'h':
+                usage();
+                exit(EXIT_FAILURE);
             case '?':
-                fprintf(stderr, "Unrecognised option: %s\n", argv[index + 1]);
+                fprintf(stderr, "Unrecognised option given\n");
                 usage();
                 exit(EXIT_FAILURE);
             case ':':
@@ -49,6 +60,9 @@ bool do_shell(int argc, char **argv) {
                 usage();
                 exit(EXIT_FAILURE);
         }
+    }
+    if (index+2 < argc){
+        fprintf(stderr, "Unwanted argument(s) given\n");
     }
     return ret_val;
 }
@@ -126,11 +140,7 @@ size_t sanitize_crlf(char *buffer, ssize_t buffer_len) {
 
 }
 
-#ifndef TESTING
-int main(int argc, char** argv){
-    //get modes of terminal
-
-    struct termios initial_status;
+void check_shell(){
     char* shell = getenv("SHELL");
     if (errno) {
         fprintf(stderr, "Could not get the shell. This isn't anything to worry about: %s", strerror(errno));
@@ -142,21 +152,26 @@ int main(int argc, char** argv){
                 "I'm not going to quit because you're an adult and can handle the \n"
                 "consequences of what you're doing.\n", shell);
     }
-    if (tcgetattr(FD_KEYBOARD, &initial_status)) { //nonzero=error
+}
+void set_terminal_modes(struct termios *initial_status){
+    if (tcgetattr(FD_KEYBOARD, initial_status)) { //nonzero=error
         fprintf(stderr, "Could not get state of current terminal: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    struct termios set_status = initial_status;
-    set_status.c_iflag = ISTRIP;
-    set_status.c_oflag = 0;
-    set_status.c_lflag = 0;
+    struct termios *set_status = initial_status;
+    set_status->c_iflag = ISTRIP;
+    set_status->c_oflag = 0;
+    set_status->c_lflag = 0;
     //set the terminal to non-canonical, no echo mode
     //suggested by the spec
-    if (tcsetattr(FD_KEYBOARD, TCSANOW, &set_status)) {
+    if (tcsetattr(FD_KEYBOARD, TCSANOW, set_status)) {
         fprintf(stderr, "Could not set status of current terminal: %s", strerror(errno));
         exit(EXIT_FAILURE);
     }
     //read into buffer then read out
+}
+
+void echo(){
     bool got_eof = false;
     char *buffer = calloc(1, READ_BUFFER_WIDTH);
     print_err();
@@ -176,6 +191,59 @@ int main(int argc, char** argv){
                 }
             }
         }
+    }
+}
+
+void shell(){
+    /*
+     * 1. Fork to create a new process, then exec a shell whose stdin in a pipe from parent, stdout/err are a pipe to parent
+     * 2. read input from keyboard and echo it, as well as forward it to the shell
+     * 3. sanitise_crlf when echoing but to shell it should be lf
+     * 4. read output from the shell and echo it to stdout, lf should be sanitised to crlf
+     */
+    //write logs to log.txt
+#ifdef DEBUG_PIPES_CS111_MARIA
+    FILE* log = fopen("log.txt", "a");
+    write_log(log, "Starting program");
+#endif
+    //fork.
+    int pipefd[2];
+    struct polls {
+        struct pollfd in;
+        struct pollfd out;
+    };
+
+    struct pollfd keyb =  {FD_KEYBOARD, (POLLIN | POLLERR | POLLHUP), (POLLIN | POLLERR | POLLHUP)};
+    ssize_t pid = fork();
+    print_err();
+    if (pid){
+#ifdef DEBUG_PIPES_CS111_MARIA
+        write_log(log, "Forked: this is the parent process");
+#endif
+        //parent
+        //set up the pipes?
+        close(pipefd[0]);
+        //I'm not gonna read from this side, cause it is not possible to read from this side
+    } else {
+#ifdef DEBUG_PIPES_CS111_MARIA
+        write_log(log, "Forked: this is the child process");
+#endif
+    }
+#ifdef DEBUG_PIPES_CS111_MARIA
+    fclose(log);
+#endif
+}
+#ifndef TESTING_CS111_MARIA
+int main(int argc, char** argv){
+    //get modes of terminal
+
+    struct termios initial_status;
+    check_shell();
+    set_terminal_modes(&initial_status);
+    if (do_shell(argc, argv)){
+        fprintf(stderr, "Shell option received\n");
+    } else {
+        echo();
     }
     //set everything back to how it was
     tcsetattr(FD_KEYBOARD, TCSANOW, &initial_status);
