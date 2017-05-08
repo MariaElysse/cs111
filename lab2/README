@@ -1,0 +1,8 @@
+NAME: Maria E.V. Neptune  
+EMAIL:jerenept@gmail.com  
+Id:   004-665-056  
+
+Q 2.1.1:
+    Many iterations are required to cause errors as a longer execution time increases the probability that a thread will miss an update to the shared memory (interesting blurb on the Geometric Distribution) 
+Q 2.1.2:
+    Yield runs so much slower beccause it causes significantly more context switches due to yielding very early in the timeslice (only one instruction is executed). The additional time is taken up by context switching of the yield() system call as well as the scheduler's choices depending on the niceness of other programs running. It's not really possible to get per-operation timings from this as a lot of time is spent by the cpu yielding instead of doing the instructions. 
