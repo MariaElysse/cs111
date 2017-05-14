@@ -4,8 +4,9 @@
 # EMAIL:jerenept@gmail.com
 lab1a: lab1a.c
 	gcc lab1a.c -o lab1a -g -Og 
-testing: lab1a.c #debug 
-	gcc lab1a.c -o lab1a -g -Og -D DEBUG_PIPES
+testing: lab1a.c #debug
+	rm -f log.txt
+	gcc lab1a.c -o lab1a -g -Og -D DEBUG_PIPES -Wall
 check: testing_build 
 #	./test.sh
 release: 
@@ -14,10 +15,10 @@ clean:
 	rm lab1a
 	rm -f lab1a-004-665-056.tar.gz
 dist: check release README 
-	tar -cvzf lab1a-004-665-056.tar.gz Makefile README lab1a.c test.sh 
+	tar -cvzf lab1a-004-665-056.tar.gz Makefile README lab1a.c test.c test.h P1A_check.sh 
 debug: lab1a
 	gdb lab1a 
-run:
+run: lab1a
 	./lab1a
 testing_build: 
 	gcc -D TESTING_CS111_MARIA -o lab1a-testing test.c lab1a.c -Wall

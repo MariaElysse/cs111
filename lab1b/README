@@ -1,0 +1,13 @@
+NAME: Maria E.V. Neptune
+EMAIL: jerenept@gmail.com
+ID: 004-665-056
+
+Important notes:
+* This server can easily support many more than one simultaneous unencrypted connections. (limit is probably the size_t max or your memory, whichever is first) You have to comment a small block of code lab1b-server.c to prevent the server from closing when there are no more connections open.
+
+Limitations:
+* The encryption probably doesn't work. I worked on it until midnight and if it doesn't work I don't think this is necessarily worth a slip day. And besides, I have a midterm on Wednesday.
+
+Research:
+Most of my network code was heavily inspired by Beej's Guide to Network Programming
+(https://beej.us/guide/bgnet)
