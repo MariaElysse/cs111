@@ -2,6 +2,20 @@ NAME: Maria E.V. Neptune
 EMAIL: jerenept@gmail.com
 ID: 004-665-056
 
+Reads temperatures from a thermistor attached to Analog pin 0 of an Intel Edison continuously, accepting commands without blocking.  
+Commands (in stdin):  
+    SCALE=F/C (switches output unit to Fahrenheit/Celsius)  
+    PERIOD=SEC (sets the time between outputs to the integer number of seconds given)  
+    STOP (stops data output)  
+    START (starts data output)  
+    OFF (terminates the program)  
+Additionally, the program can be terminated with a button attached to pin D3.
+
+Command-line switches: 
+    --log=logfile (indicates a file that command and reading logs are to be appended to)  
+    --scale=[F/C] (sets the output units before startup - Fahrenheit is the default)  
+    --period=S (sets the time between outputs before startup)  
+
 NOTES: 
 Included files: 
     * lab4-utils.c/.h: contains functions and structures used to do the grunt work of each feature of the program (reading from pins/stdio, processing commands, etc)
