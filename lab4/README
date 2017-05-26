@@ -1,0 +1,12 @@
+NAME: Maria E.V. Neptune
+EMAIL: jerenept@gmail.com
+ID: 004-665-056
+
+NOTES: 
+Included files: 
+    * lab4-utils.c/.h: contains functions and structures used to do the grunt work of each feature of the program (reading from pins/stdio, processing commands, etc)
+    * lab4_deploy.sh: copies everything from my laptop to the edison and builds
+    * Makefile: builds components required. If it's on my laptop, it'll copy everything over to the edison then build the components. 
+    * P4B_check.sh: Professor Kampe's test scripts
+    * README: this file
+    * lab4b.c: main c file that calls all the other functions. 
